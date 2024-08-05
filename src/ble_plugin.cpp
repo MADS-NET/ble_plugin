@@ -57,10 +57,19 @@ public:
     ba_t value;
     string key;
     for (auto &uuid : _uuids) {
-      strncpy(value.b, _peripheral.read(uuid.first, uuid.second).c_str(), 4);
-      key = uuid.second.substr(0, uuid.second.find("-"));
-      key.erase(0, key.find_first_not_of('0'));
-      out[key] = value.v;
+      try {
+        if (!_peripheral.is_connected()) {
+          connect();
+        }
+        strncpy(value.b, _peripheral.read(uuid.first, uuid.second).c_str(), 4);
+        key = uuid.second.substr(0, uuid.second.find("-"));
+        key.erase(0, key.find_first_not_of('0'));
+        out[key] = value.v;
+      } catch (exception &e) {
+        if (!_params["silent"])
+          cerr << "Error: " << e.what() << endl;
+        return return_type::error;
+      }
     }
     if (!_agent_id.empty())
       out["agent_id"] = _agent_id;
@@ -74,8 +83,18 @@ public:
     _params["characteristics"] = json::array();
     _params.merge_patch(*(json *)params);
 
+    connect();
+  }
+
+  map<string, string> info() override {
+    return {{"peripheral", {_params["peripheral"].get<string>()}}};
+  };
+
+private:
+  void connect() {
     vector<Adapter> adapters = Adapter::get_adapters();
     bool found = false;
+    _uuids.clear();
     _adapter = adapters[0];
 
     _adapter.set_callback_on_scan_start([&]() {
@@ -117,10 +136,6 @@ public:
       }
     }
   }
-
-  map<string, string> info() override {
-    return {{"peripheral", {_params["peripheral"].get<string>()}}};
-  };
 
 private:
   // Define the fields that are used to store internal resources
@@ -174,6 +189,6 @@ int main(int argc, char const *argv[]) {
 
     this_thread::sleep_for(chrono::milliseconds(250));
   }
-
+  cout << "Exiting..." << endl;
   return 0;
 }
