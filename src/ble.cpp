@@ -39,13 +39,13 @@ typedef union {
 
 // Plugin class. This shall be the only part that needs to be modified,
 // implementing the actual functionality
-class Ble_pluginPlugin : public Source<json> {
+class BlePlugin : public Source<json> {
 
 public:
   // Typically, no need to change this
   string kind() override { return PLUGIN_NAME; }
 
-  ~Ble_pluginPlugin() {
+  ~BlePlugin() {
     _peripheral.disconnect();
   }
 
@@ -99,15 +99,15 @@ private:
 
     _adapter.set_callback_on_scan_start([&]() {
       if (!_params["silent"])
-        cerr << "Start searching for " << _params["peripheral"].get<string>()
+        cerr << "Start searching for: " << _params["peripheral"].get<string>()
              << endl;
     });
 
     _adapter.set_callback_on_scan_stop([&]() {
       if (!_params["silent"])
         cerr << "Found peripheral: " << _peripheral.identifier()
-             << " address: " << _peripheral.address()
-             << " rssi: " << _peripheral.rssi() << endl;
+             << ", address: " << _peripheral.address()
+             << ", rssi: " << _peripheral.rssi() << endl;
     });
 
     _adapter.set_callback_on_scan_found([&](SimpleBLE::Peripheral peripheral) {
@@ -153,7 +153,7 @@ private:
                 |___/
 Enable the class as plugin
 */
-INSTALL_SOURCE_DRIVER(Ble_pluginPlugin, json)
+INSTALL_SOURCE_DRIVER(BlePlugin, json)
 
 /*
                   _
@@ -168,7 +168,7 @@ For testing purposes, when directly executing the plugin
 static bool running = true;
 
 int main(int argc, char const *argv[]) {
-  Ble_pluginPlugin plugin;
+  BlePlugin plugin;
   json output, params;
 
   // Set example values to params

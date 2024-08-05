@@ -110,7 +110,7 @@ endif()
 include_directories(${json_SOURCE_DIR}/include)
 
 
-add_plugin(ble_plugin LIBS simpleble::simpleble)
+add_plugin(ble LIBS simpleble::simpleble)
 
 
 # INSTALL ######################################################################
