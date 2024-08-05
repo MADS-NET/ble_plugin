@@ -34,6 +34,14 @@ cmake --build build --config Release
 cmake --install build --config Release
 ```
 
+## Requirements
+
+On Linux, the plugin requires the following packages to be installed:
+
+```bash
+sudo apt install libdbus-1-dev
+```
+
 
 ## INI settings
 
