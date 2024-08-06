@@ -58,7 +58,7 @@ FetchContent_Populate(plugin)
 FetchContent_Declare(
     simpleble
     GIT_REPOSITORY https://github.com/OpenBluetoothToolbox/SimpleBLE.git
-    GIT_TAG v0.7.3
+    GIT_TAG HEAD
     GIT_SHALLOW YES
 )
 FetchContent_GetProperties(simpleble)
