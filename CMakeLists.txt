@@ -47,26 +47,21 @@ FetchContent_Declare(json
   GIT_SHALLOW    TRUE
 )
 
-FetchContent_Declare(plugin 
+FetchContent_MakeAvailable(pugg json)
+
+FetchContent_Populate(plugin 
   GIT_REPOSITORY https://github.com/pbosetti/mads_plugin.git
   GIT_TAG        HEAD
   GIT_SHALLOW    TRUE
 )
-FetchContent_MakeAvailable(pugg json)
-FetchContent_Populate(plugin)
 
-FetchContent_Declare(
-    simpleble
-    GIT_REPOSITORY https://github.com/OpenBluetoothToolbox/SimpleBLE.git
-    GIT_TAG HEAD
-    GIT_SHALLOW YES
+FetchContent_Populate(simpleble
+  GIT_REPOSITORY https://github.com/OpenBluetoothToolbox/SimpleBLE.git
+  GIT_TAG        HEAD
+  GIT_SHALLOW    TRUE
 )
-FetchContent_GetProperties(simpleble)
-if(NOT simpleble_POPULATED)
-    FetchContent_Populate(simpleble)
-    list(APPEND CMAKE_MODULE_PATH "${simpleble_SOURCE_DIR}/cmake/find")
-    add_subdirectory("${simpleble_SOURCE_DIR}/simpleble" "${simpleble_BINARY_DIR}")
-endif()
+list(APPEND CMAKE_MODULE_PATH "${simpleble_SOURCE_DIR}/cmake/find")
+add_subdirectory("${simpleble_SOURCE_DIR}/simpleble" "${simpleble_BINARY_DIR}")
 
 
 include_directories(${plugin_SOURCE_DIR}/src)
