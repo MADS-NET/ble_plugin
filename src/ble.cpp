@@ -25,7 +25,7 @@
 
 // Define the name of the plugin
 #ifndef PLUGIN_NAME
-#define PLUGIN_NAME "ble_plugin"
+#define PLUGIN_NAME "ble"
 #endif
 
 // Load the namespaces
@@ -70,7 +70,7 @@ public:
               value.b,
               (char const *)_peripheral.read(uuid.first, uuid.second).data(),
               4);
-          _payload[short_uuid(uuid.second)] = value.v;
+          _payload[short_uuid(uuid.second, _params["uuid_part"])] = value.v;
         } catch (exception &e) {
           if (!_params["silent"])
             cerr << "Error: " << e.what() << endl;
@@ -91,6 +91,7 @@ public:
     _params["list_peripherals"] = false;
     _params["characteristics"] = json::array();
     _params["subscribe"] = false;
+    _params["uuid_part"] = 1;
     _params.merge_patch(*(json *)params);
 
     if (!_params["characteristics"].is_array())
@@ -100,15 +101,32 @@ public:
   }
 
   map<string, string> info() override {
-    return {{"peripheral", {_params["peripheral"].get<string>()}}};
+    return {
+      {"Peripheral", {_params["peripheral"].get<string>()}},
+      {"UUID part", to_string(_params["uuid_part"])}
+    };
   };
 
 private:
-  string short_uuid(BluetoothUUID uuid) {
-    string key = uuid.substr(0, uuid.find("-"));
-    if (key.size() > 0)
-      key.erase(0, key.find_first_not_of('0'));
-    return key;
+  string short_uuid(BluetoothUUID uuid, int n) {
+      // split UUID by '-' into up to 5 components
+      std::vector<std::string> parts;
+      size_t pos = 0;
+      size_t dash;
+      while ((dash = uuid.find('-', pos)) != std::string::npos) {
+          parts.push_back(uuid.substr(pos, dash - pos));
+          pos = dash + 1;
+      }
+      // push the last component (or whole string if no dashes found)
+      parts.push_back(uuid.substr(pos));
+
+      // if n is out of range return the full uuid string
+      if (n < 0 || n > 4) return uuid;
+
+      // if the requested component doesn't exist, return the full uuid
+      if ((size_t)n >= parts.size()) return uuid;
+
+      return parts[n];
   }
 
   void connect() {
@@ -157,8 +175,8 @@ private:
         BluetoothUUID uuid = characteristic.uuid();
         bool use_it =
             (ch.empty() || find(ch.begin(), ch.end(), uuid) != end(ch));
-        if (_params["list_uuids"])
-          cerr << "    Characteristic: " << characteristic.uuid()
+        if (_params["list_uuids"]) 
+          cerr << "    Characteristic: " << uuid
                << (use_it ? " *" : "") << endl;
 
         if (use_it) {
@@ -186,7 +204,7 @@ private:
       Service sc = s;
       ba_t value;
       strncpy(value.b, (char const *)bytes.data(), 4);
-      _payload[short_uuid(cc.uuid())] = value.v;
+      _payload[short_uuid(cc.uuid(), _params["uuid_part"])] = value.v;
       raise(SIGUSR1);
     });
   }
@@ -230,8 +248,8 @@ int main(int argc, char const *argv[]) {
   // Set example values to params
   params["peripheral"] = "Arduino";
   params["list_uuids"] = true;
-  params["characteristics"] = {// "00002a57-0000-1000-8000-00805f9b34fb",
-                               // "00002a58-0000-1000-8000-00805f9b34fb",
+  params["characteristics"] = {"00002a57-0000-1000-8000-00805f9b34fb",
+                               "00002a58-0000-1000-8000-00805f9b34fb",
                                "00002a59-0000-1000-8000-00805f9b34fb"};
   params["subscribe"] = (argc > 1);
 

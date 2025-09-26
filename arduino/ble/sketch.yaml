@@ -1,0 +1,2 @@
+default_fqbn: arduino:mbed_portenta:envie_m7
+default_port: /dev/cu.usbmodem1101

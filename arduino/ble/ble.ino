@@ -9,13 +9,13 @@ Logs analog inputs to BLE characteristics
 */
 #include <ArduinoBLE.h>
 
-#define TIMESTEP 50 // time between readings in milliseconds
+#define TIMESTEP 1 // time between readings in milliseconds
 #define THRESHOLD 100
-BLEService newService("180A"); // creating the service
+BLEService newService("ef91a0af-6933-43cb-8988-46f54772cfc7"); // creating the service
 
-BLEUnsignedCharCharacteristic analog1("2A57", BLERead); // creating the Analog Value characteristic
-BLEUnsignedCharCharacteristic analog2("2A58", BLERead); // creating the Analog Value characteristic
-BLEBooleanCharacteristic pin2("2A59", BLERead | BLENotify);
+BLEUnsignedCharCharacteristic analog1("ef91a0af-6934-43cb-8988-46f54772cfc7", BLERead); // creating the Analog Value characteristic
+BLEUnsignedCharCharacteristic analog2("ef91a0af-6935-43cb-8988-46f54772cfc7", BLERead); // creating the Analog Value characteristic
+BLEBooleanCharacteristic pin2("ef91a0af-6936-43cb-8988-46f54772cfc7", BLERead | BLENotify);
 
 const int ledPin = 2;
 long previousMillis = 0;
@@ -31,39 +31,57 @@ void setup() {
   pinMode(ledPin, OUTPUT); // initialize the built-in LED pin to indicate when a central is connected
   pinMode(2, INPUT_PULLDOWN);
 
+  analog1.writeValue(0); //set initial value for characteristics
+  analog2.writeValue(0);
+  pin2.writeValue(true);
+
   //initialize ArduinoBLE library
   if (!BLE.begin()) {
     Serial.println("starting Bluetooth® Low Energy failed!");
-    while (1);
+    while (true);
   }
 
   BLE.setLocalName("Arduino"); //Setting a name that will appear when scanning for Bluetooth® devices
+  BLE.setDeviceName("Arduino"); //Setting a name that will appear when scanning for Bluetooth® devices
   BLE.setAdvertisedService(newService);
 
   newService.addCharacteristic(analog1); //add characteristics to a service
   newService.addCharacteristic(analog2);
   newService.addCharacteristic(pin2);
 
+  // assign event handlers for connected, disconnected to peripheral
+  BLE.setEventHandler(BLEConnected, connectHandler);
+  BLE.setEventHandler(BLEDisconnected, disconnectHandler);
+
   BLE.addService(newService);  // adding the service
 
-  analog1.writeValue(0); //set initial value for characteristics
-  analog2.writeValue(0);
-  pin2.writeValue(true);
-
+  Serial.println("Bluetooth® device active, waiting for connections...");
   BLE.advertise(); //start advertising the service
-  Serial.println(" Bluetooth® device active, waiting for connections...");
+}
+
+
+void connectHandler(BLEDevice central) {
+  // central connected event handler
+  Serial.print("Connected event, central: ");
+  Serial.print(central.address());
+  Serial.print(" - ");
+  Serial.println(central.deviceName());
+  digitalWrite(LED_BUILTIN, LOW);
+}
+
+void disconnectHandler(BLEDevice central) {
+  // central disconnected event handler
+  Serial.print("Disconnected event, central: ");
+  Serial.print(central.address());
+  Serial.print(" - ");
+  Serial.println(central.deviceName());
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void loop() {
   BLEDevice central = BLE.central(); // wait for a Bluetooth® Low Energy central
 
   if (central) {  // if a central is connected to the peripheral
-    Serial.print("Connected to central: ");
-    
-    Serial.println(central.address()); // print the central's BT address
-    
-    digitalWrite(LED_BUILTIN, HIGH); // turn on the LED to indicate the connection
-
     // check the battery level every TIMESTEP ms
     // while the central is connected:
     static PinStatus pin2Value = HIGH;
@@ -93,9 +111,5 @@ void loop() {
         pin2Value = v;
       }
     }
-    
-    digitalWrite(LED_BUILTIN, LOW); // when the central disconnects, turn off the LED
-    Serial.print("Disconnected from central: ");
-    Serial.println(central.address());
   }
 }
