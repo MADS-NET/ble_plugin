@@ -14,8 +14,11 @@ Logs analog inputs to BLE characteristics
 BLEService newService("ef91a0af-6933-43cb-8988-46f54772cfc7"); // creating the service
 
 BLEUnsignedCharCharacteristic analog1("ef91a0af-6934-43cb-8988-46f54772cfc7", BLERead); // creating the Analog Value characteristic
+
 BLEUnsignedCharCharacteristic analog2("ef91a0af-6935-43cb-8988-46f54772cfc7", BLERead); // creating the Analog Value characteristic
+
 BLEBooleanCharacteristic pin2("ef91a0af-6936-43cb-8988-46f54772cfc7", BLERead | BLENotify);
+
 
 const int ledPin = 2;
 long previousMillis = 0;
@@ -23,7 +26,6 @@ long previousMillis = 0;
 
 void setup() {
   Serial.begin(9600);    // initialize serial communication
-  while (!Serial);       //starts the program if we open the serial monitor.
 
   analogReadResolution(14);
 
