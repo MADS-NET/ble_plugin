@@ -49,8 +49,7 @@ public:
 
   ~BlePlugin() { _peripheral.disconnect(); }
 
-  return_type get_output(json &out,
-                         std::vector<unsigned char> *blob = nullptr) override {
+  return_type get_output(json &out, vector<unsigned char> *blob = nullptr) override {
     ba_t value;
     out.clear();
     // reading asynchronous notifications
@@ -85,14 +84,14 @@ public:
     return return_type::success;
   }
 
-  void set_params(void const *params) override {
+  void set_params(const json &params) override {
     Source::set_params(params);
     _params["silent"] = false;
     _params["list_peripherals"] = false;
     _params["characteristics"] = json::array();
     _params["subscribe"] = false;
     _params["uuid_part"] = 1;
-    _params.merge_patch(*(json *)params);
+    _params.merge_patch(params);
 
     if (!_params["characteristics"].is_array())
       throw runtime_error("Characteristics parameter must be an array!");
@@ -254,7 +253,7 @@ int main(int argc, char const *argv[]) {
   params["subscribe"] = (argc > 1);
 
   // Set the parameters
-  plugin.set_params(&params);
+  plugin.set_params(params);
 
   signal(SIGINT, [](int) { running = false; });
   while (running) {

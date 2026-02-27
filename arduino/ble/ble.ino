@@ -11,52 +11,91 @@ Logs analog inputs to BLE characteristics
 
 #define TIMESTEP 1 // time between readings in milliseconds
 #define THRESHOLD 100
-BLEService newService("ef91a0af-6933-43cb-8988-46f54772cfc7"); // creating the service
+#define BASE_UUID 0x6933
+#define UUID_A "ef91a0af-"
+#define UUID_B "-43cb-8988-46f54772cfc7"
+#define ANALOG_CHARS_LEN 6
+#define BOOL_CHARS_PORTS {D4, D5, D6, D7, D8}
+#define BOOL_CHARS_LEN 5
 
-BLEUnsignedCharCharacteristic analog1("ef91a0af-6934-43cb-8988-46f54772cfc7", BLERead); // creating the Analog Value characteristic
+String uuid_p1("ef91a0af-");
+String uuid_p2("-43cb-8988-46f54772cfc7");
 
-BLEUnsignedCharCharacteristic analog2("ef91a0af-6935-43cb-8988-46f54772cfc7", BLERead); // creating the Analog Value characteristic
+BLEService *Service;
+BLEUnsignedIntCharacteristic *AnalogChars[ANALOG_CHARS_LEN];
+BLEBooleanCharacteristic *BoolChars[BOOL_CHARS_LEN];
+BLEUnsignedIntCharacteristic *ThresholdChar;
 
-BLEBooleanCharacteristic pin2("ef91a0af-6936-43cb-8988-46f54772cfc7", BLERead | BLENotify);
-
+unsigned int DigitalPorts[] = BOOL_CHARS_PORTS;
+unsigned int Threshold = THRESHOLD;
+bool BoolValues[BOOL_CHARS_LEN];
 
 const int ledPin = 2;
 long previousMillis = 0;
+
+// Make a UUID by incrementing the second part of a standard UUID
+String make_uuid(unsigned int i) {
+  String out(UUID_A);
+  char buf[5];
+  sprintf(buf, "%04x", i);
+  out.concat(buf);
+  out.concat(UUID_B);
+  return out;
+}
 
 
 void setup() {
   Serial.begin(9600);    // initialize serial communication
 
+  // PINS
   analogReadResolution(14);
-
   pinMode(LED_BUILTIN, OUTPUT); // initialize the built-in LED pin to indicate when a central is connected
   pinMode(ledPin, OUTPUT); // initialize the built-in LED pin to indicate when a central is connected
   pinMode(2, INPUT_PULLDOWN);
 
-  analog1.writeValue(0); //set initial value for characteristics
-  analog2.writeValue(0);
-  pin2.writeValue(true);
+  // pin2.writeValue(true);
 
+  // BLE
   //initialize ArduinoBLE library
   if (!BLE.begin()) {
     Serial.println("starting Bluetooth® Low Energy failed!");
     while (true);
   }
 
+  // BLE elements
+  // Service
+  Service = new BLEService(make_uuid(BASE_UUID).c_str());
   BLE.setLocalName("Arduino"); //Setting a name that will appear when scanning for Bluetooth® devices
   BLE.setDeviceName("Arduino"); //Setting a name that will appear when scanning for Bluetooth® devices
-  BLE.setAdvertisedService(newService);
+  BLE.setAdvertisedService(*Service);
 
-  newService.addCharacteristic(analog1); //add characteristics to a service
-  newService.addCharacteristic(analog2);
-  newService.addCharacteristic(pin2);
+  // Analog characteristics
+  for (int i = 0; i < ANALOG_CHARS_LEN; i++) {
+    AnalogChars[i] = new BLEUnsignedIntCharacteristic(make_uuid(BASE_UUID + i + 1).c_str(), BLERead);
+    Service->addCharacteristic(*AnalogChars[i]);
+    AnalogChars[i]->writeValue(0);
+  }
+
+  // Digital characteristics
+  for (int i = 0; i < BOOL_CHARS_LEN; i++) {
+    BoolChars[i] = new BLEBooleanCharacteristic(make_uuid(BASE_UUID + i + 1 + ANALOG_CHARS_LEN).c_str(), BLERead | BLENotify);
+    Service->addCharacteristic(*BoolChars[i]);
+    BoolChars[i]->writeValue(false);
+    pinMode(DigitalPorts[i], INPUT_PULLDOWN);
+    BoolValues[i] = false;
+  }
+
+  ThresholdChar = new BLEUnsignedIntCharacteristic(make_uuid(BASE_UUID + ANALOG_CHARS_LEN + BOOL_CHARS_LEN + 1).c_str(), BLEWrite | BLERead);
+  // ThresholdChar->subscribe();
+  Service->addCharacteristic(*ThresholdChar);
+
 
   // assign event handlers for connected, disconnected to peripheral
   BLE.setEventHandler(BLEConnected, connectHandler);
   BLE.setEventHandler(BLEDisconnected, disconnectHandler);
 
-  BLE.addService(newService);  // adding the service
-
+  // Instantiating and advertising service
+  BLE.addService(*Service);  // adding the service
   Serial.println("Bluetooth® device active, waiting for connections...");
   BLE.advertise(); //start advertising the service
 }
@@ -67,8 +106,9 @@ void connectHandler(BLEDevice central) {
   Serial.print("Connected event, central: ");
   Serial.print(central.address());
   Serial.print(" - ");
+  Serial.print(Threshold);
   Serial.println(central.deviceName());
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void disconnectHandler(BLEDevice central) {
@@ -77,40 +117,36 @@ void disconnectHandler(BLEDevice central) {
   Serial.print(central.address());
   Serial.print(" - ");
   Serial.println(central.deviceName());
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void loop() {
   BLEDevice central = BLE.central(); // wait for a Bluetooth® Low Energy central
 
   if (central) {  // if a central is connected to the peripheral
-    // check the battery level every TIMESTEP ms
-    // while the central is connected:
-    static PinStatus pin2Value = HIGH;
     while (central.connected()) {
-      PinStatus v = digitalRead(D2);
-      long currentMillis = millis();
-      
-      // polling happens at TIMESTEP:
-      if (currentMillis - previousMillis >= TIMESTEP) { 
-        previousMillis = currentMillis;
-        int v1 = analogRead(A1);
-        int v2 = analogRead(A2);
-        if (v1 > THRESHOLD)
-          analog1.writeValue(v1);
-        else
-          analog1.writeValue(0);
-        if (v2 > THRESHOLD)
-          analog2.writeValue(v2);
-        else
-          analog2.writeValue(0);
+      for (int i = 0; i < ANALOG_CHARS_LEN; i++) {
+        auto v = analogRead(i);
+        if (v > Threshold) {
+          AnalogChars[i]->writeValue(v);
+        }
+        else {
+          AnalogChars[i]->writeValue(0);
+        }
       }
 
-      // this runs at full speed, so the notification is immediate:
-      if (pin2Value != v) {
-        Serial.println(v ? "ON" : "OFF");
-        pin2.writeValue(v);
-        pin2Value = v;
+      for (int i = 0; i < BOOL_CHARS_LEN; i++) {
+        bool v = digitalRead(DigitalPorts[i]);
+        if (v != BoolValues[i]) {
+          BoolChars[i]->writeValue(v);
+          BoolValues[i] = v;
+        }
+      }
+
+      if (ThresholdChar->written()) {
+        Threshold = ThresholdChar->value();
+        Serial.print("Threshold set to ");
+        Serial.println(Threshold);
       }
     }
   }
