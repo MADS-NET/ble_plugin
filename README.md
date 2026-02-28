@@ -4,8 +4,7 @@ This is a Source plugin for [MADS](https://github.com/MADS-NET/MADS).
 
 This plugin reads raw data published by a BLE peripheral device and sends it to the MADS framework. the plugin is based on the [SimpleBLE](https://github.com/OpenBluetoothToolbox/SimpleBLE), which is automatically downloaded and compiled.
 
-*Required MADS version: 1.0.2.*
-
+> This plugin has been updated for MADS v2
 
 ## Supported platforms
 
