@@ -226,7 +226,7 @@ private:
                 |___/
 Enable the class as plugin
 */
-INSTALL_SOURCE_DRIVER(BlePlugin, json)
+MADS_REGISTER_PLUGINS(BlePlugin)
 
 /*
                   _

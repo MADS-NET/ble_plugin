@@ -28,12 +28,19 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   endif()
 endif()
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
-message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}") 
+message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+set(PLUGIN_SUFFIX "" CACHE STRING "Suffix for the plugin file, identifying the architecture, e.g. arm64, x86_64, etc.")
+if(PLUGIN_SUFFIX STREQUAL "")
+  message(WARNING "No PLUGIN_SUFFIX set, using default plugin name. In multi-platform environment with OTA plugins it is advised to set PLUGIN_SUFFIX to the architecture, e.g. arm64, x86_64, etc.")
+else()
+  message(STATUS "PLUGIN_SUFFIX set to: ${PLUGIN_SUFFIX}")
+endif()
 
 # PROJECT SETTINGS #############################################################
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(UNIX AND NOT APPLE)
   set(LINUX TRUE)
@@ -45,9 +52,9 @@ include(FetchContent)
 # pugg is for the plugin system
 FetchContent_Declare(pugg 
   GIT_REPOSITORY https://github.com/pbosetti/pugg.git
-  GIT_TAG        1.1.0
+  GIT_TAG        1.2.0
   GIT_SHALLOW    TRUE
-  EXLUDE_FROM_ALL
+  EXCLUDE_FROM_ALL
 )
 
 set(BUILD_TESTING OFF CACHE INTERNAL "")
@@ -61,7 +68,7 @@ FetchContent_MakeAvailable(pugg json)
 
 FetchContent_Populate(plugin 
   GIT_REPOSITORY https://github.com/pbosetti/mads_plugin.git
-  GIT_TAG        v2.3-P7
+  GIT_TAG        v2.4-P8
   GIT_SHALLOW    TRUE
 )
 
@@ -72,6 +79,18 @@ FetchContent_Populate(simpleble
 )
 list(APPEND CMAKE_MODULE_PATH "${simpleble_SOURCE_DIR}/cmake/find")
 add_subdirectory("${simpleble_SOURCE_DIR}/simpleble" "${simpleble_BINARY_DIR}")
+
+# company_ids.json: Bluetooth SIG company identifier -> manufacturer name
+# mapping, mirrored by Nordic Semiconductor so we don't have to scrape/parse
+# the SIG's own YAML. Used by the blescan plugin to label manufacturer_data.
+FetchContent_Declare(company_ids
+  URL https://raw.githubusercontent.com/NordicSemiconductor/bluetooth-numbers-database/master/v1/company_ids.json
+  DOWNLOAD_NO_EXTRACT TRUE
+  DOWNLOAD_NAME company_ids.json
+)
+FetchContent_MakeAvailable(company_ids)
+file(READ "${company_ids_SOURCE_DIR}/company_ids.json" COMPANY_IDS_JSON_CONTENT)
+configure_file(${SRC_DIR}/company_ids.hpp.in ${CMAKE_BINARY_DIR}/generated/company_ids.hpp @ONLY)
 
 
 include_directories(${plugin_SOURCE_DIR}/src)
@@ -91,15 +110,29 @@ macro(add_plugin name)
   else()
     add_library(${name} SHARED ${SRC_DIR}/${name}.cpp ${plugin_SRCS})
     add_executable(${name}_main ${SRC_DIR}/${name}.cpp ${plugin_SRCS})
+    target_include_directories(${name}_main BEFORE PRIVATE ${json_SOURCE_DIR}/include)
     target_link_libraries(${name}_main PRIVATE pugg ${plugin_LIBS})
-    set_target_properties(${name}_main PROPERTIES OUTPUT_NAME ${name})
+    if(WIN32)
+      set_target_properties(${name}_main PROPERTIES
+        OUTPUT_NAME ${name}
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/exe"
+        PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/exe")
+    else()
+      set_target_properties(${name}_main PROPERTIES OUTPUT_NAME ${name})
+    endif()
     set(${name}_EXEC ${name})
     list(APPEND TARGET_LIST ${name}_main)
   endif()
+  target_include_directories(${name} BEFORE PRIVATE ${json_SOURCE_DIR}/include)
   target_link_libraries(${name} PRIVATE pugg ${plugin_LIBS})
   set_target_properties(${name} PROPERTIES PREFIX "")
-  set_target_properties(${name} PROPERTIES SUFFIX ".plugin")
-  target_compile_definitions(${name} PRIVATE PLUGIN_NAME="${name}")
+  if (PLUGIN_SUFFIX)
+    set_target_properties(${name} PROPERTIES SUFFIX "_${PLUGIN_SUFFIX}.plugin")
+    target_compile_definitions(${name} PRIVATE PLUGIN_NAME="${name}_${PLUGIN_SUFFIX}")
+  else()
+    set_target_properties(${name} PROPERTIES SUFFIX ".plugin")
+    target_compile_definitions(${name} PRIVATE PLUGIN_NAME="${name}")
+  endif()
   list(APPEND TARGET_LIST ${name})
 endmacro()
 
@@ -116,6 +149,11 @@ include_directories(${json_SOURCE_DIR}/include)
 
 
 add_plugin(ble LIBS simpleble::simpleble)
+add_plugin(blescan LIBS simpleble::simpleble)
+target_include_directories(blescan PRIVATE ${CMAKE_BINARY_DIR}/generated)
+if (NOT APPLE)
+  target_include_directories(blescan_main PRIVATE ${CMAKE_BINARY_DIR}/generated)
+endif()
 
 
 # INSTALL ######################################################################

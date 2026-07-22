@@ -1,2 +1,6 @@
 /build
 /.vscode
+imgui.ini
+mads_chat_settings.json
+.Rhistory
+.venv

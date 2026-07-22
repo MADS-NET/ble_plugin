@@ -1,0 +1,9 @@
+#pragma once
+// Auto-generated at CMake configure time from company_ids.json (Nordic
+// Semiconductor's bluetooth-numbers-database, mirroring the Bluetooth SIG's
+// official company identifier assignments: https://github.com/NordicSemiconductor/bluetooth-numbers-database).
+// Do not edit by hand; re-run cmake to refresh.
+
+inline constexpr char kCompanyIdsJson[] = R"json(
+@COMPANY_IDS_JSON_CONTENT@
+)json";
