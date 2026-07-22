@@ -46,7 +46,7 @@ relaunch = false
 tty = false
 
 [blefilter]
-command = "mads filter build/blescan.plugin -n blefilter"
+command = "mads filter build/blescan.plugin"
 after = "blescan"
 enabled = true
 

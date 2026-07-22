@@ -80,8 +80,9 @@ All settings are optional; if omitted, the default values are used.
 
 The demo connects to a BLE peripheral named "Arduino" and fetches all the available characteristics as `uint32_t` values.
 
+---
 
-## `blescan` plugin
+# `blescan` plugin
 
 Unlike `ble` (which connects to one named peripheral and reads specific
 characteristics), `blescan` never connects to anything: it keeps a single BLE
@@ -90,10 +91,10 @@ publishes, for every currently visible device, all publicly-broadcast
 information: address, name, RSSI, advertised TX power, connectability,
 address type, manufacturer data, and advertised service UUIDs/data.
 
-### INI settings
+## INI settings
 
 ```ini
-[blescan]
+[ble_scan]
 adapter = 0        # index into the list of available BLE adapters (0 = first)
 max_age_ms = 30000 # drop a device from the output if unseen for this long; 0 = never drop
 silent = false      # suppress diagnostic logging to stderr
@@ -104,7 +105,7 @@ adapter_refresh = 600 # seconds between full adapter/scan rebuilds, bounding Sim
 
 All settings are optional; if omitted, the default values above are used.
 
-### Output format
+## Output format
 
 Each call publishes a JSON object of the form:
 
@@ -132,7 +133,7 @@ happens continuously in the background and `get_output()` only reads the
 already-updated scan state, it is safe to call at high frequency (e.g. 10 Hz
 or faster).
 
-### Known limitations
+## Known limitations
 
 * SimpleBLE never forgets a device once seen, for as long as the underlying
   `Adapter` object lives, even after it goes out of range. `blescan`
@@ -160,5 +161,16 @@ or faster).
   bluetooth-numbers-database](https://github.com/NordicSemiconductor/bluetooth-numbers-database),
   fetched once at CMake configure time). It is `null` for codes not yet
   present in that snapshot; re-run `cmake -Bbuild` to refresh it.
+
+
+## Multi-driver plugin
+
+By exploiting MADS v2.4.x multi-driver plugin support, the `blescan` plugin can be used as a filter to provide a list of currently visible BLE devices to other plugins, in a format that can be easily consumed by the rerunner plugin (for plotting). 
+
+Multi-driver plugins implement two or three drivers: anu combination of source, filter and sink driver classes. Each class must implement its own `kind()` method, which returns the driver type name. That type name is used to fetch the proper settings section. So in this case, the `blescan` plugin implements:
+
+* the `ble_scan` source driver, which loads the settings from the `[ble_scan]` section and provides the list of currently visible BLE devices. Load it as `mads source blescan.plugin`.
+* the `ble_filter` filter driver, which loads the settings from the `[ble_filter]` section and provides a filter for the `ble_scan` source driver, so that only the devices that match the filter are published to the MADS framework. Load it as `mads filter blescan.plugin`. 
+
 
 ---
