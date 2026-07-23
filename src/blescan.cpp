@@ -26,6 +26,10 @@ manufacturer data, advertised services) for every visible device.
 #include <thread>
 #include <unordered_map>
 
+#ifndef PLUGIN_NAME
+#define PLUGIN_NAME "blescan"
+#endif
+
 #ifdef __APPLE__
 // SimpleBLE's macOS backend calls into Objective-C for several Peripheral
 // accessors (e.g. identifier()/address() message-send into CBPeripheral and
