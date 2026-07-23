@@ -379,7 +379,7 @@ public:
         continue; // skip devices in the blacklist
       }
       try {
-        if (device.value("rssi", -1) >= _params["rssi_min"]) {
+        if (device.value("rssi", -1) < _params["rssi_min"]) {
           continue; // skip devices with RSSI below the threshold
         }
         if (_params.value("layout_ary", true)) {
@@ -433,7 +433,7 @@ public:
   void set_params(const json &params) override {
     Filter::set_params(params);
 
-    _params["rssi_min"] = -50; // minimum RSSI to include a device
+    _params["rssi_min"] = -100; // minimum RSSI to include a device
     _params["silent"] = true; // suppress diagnostic logging to stderr
     _params["layout_ary"] = true;
     _params["layout_map"] = true;
